@@ -8,6 +8,11 @@ import String
 import Test exposing (..)
 
 
+type ChildSitemap
+    = ChildHome
+    | ChildFoo Int
+
+
 type Sitemap
     = Home
     | Users
@@ -16,6 +21,7 @@ type Sitemap
     | UserEmail Int Int
     | Deep Int Int Int
     | CustomR Foo
+    | ChildR ChildSitemap
 
 
 type Foo
@@ -65,6 +71,20 @@ customR =
     CustomR := static "custom" </> custom fooP
 
 
+childR : Route Sitemap
+childR =
+    ChildR := static "child" </> child [childFoo, childHome]
+
+
+childHome : Route ChildSitemap
+childHome =
+    ChildHome := static ""
+
+childFoo : Route ChildSitemap
+childFoo =
+    ChildFoo := static "foo" </> int
+
+
 routes : Router Sitemap
 routes =
     router
@@ -75,6 +95,7 @@ routes =
         , userEmailR
         , deepR
         , customR
+        , childR
         ]
 
 
@@ -101,6 +122,13 @@ render r =
 
         CustomR x ->
             reverse customR [ toString x ]
+
+        ChildR c ->
+            case c of
+                ChildHome -> 
+                    reverse childR [ ]
+                ChildFoo id ->
+                    reverse childR [ toString id ]
 
 
 ints1 : Fuzzer Int
@@ -155,6 +183,12 @@ matching =
             , test
                 "matches custom ADT routes"
                 (matches (CustomR Bar) "/custom/Bar")
+            , test
+                "match child paths"
+                (\x -> matches_ (ChildR ChildHome) "/child/")
+            , test
+                "match child paths with dynamic segment"
+                (\x -> matches_ (ChildR (ChildFoo 1)) ("/child/foo/" ++ toString 1))
             , fuzz ints1
                 "matches one dynamic segment"
                 (\x -> matches_ (User x) ("/users/" ++ toString x))
@@ -188,6 +222,9 @@ reversing =
             , fuzz ints1
                 "reverses dynamic routes"
                 (\x -> compare [ "users", toString x ] userR [ toString x ] ())
+            , fuzz ints1
+                "reverses child dynamic routes"
+                (\x -> compare [ "child", "foo", toString x ] childR [ "foo/" ++ toString x ] ())                    
             ]
 
 
@@ -209,6 +246,9 @@ rendering =
             , test
                 "renders custom parser routes"
                 (compare [ "custom", "Foo" ] (CustomR Foo))
+            , fuzz ints1
+                "renders child dynamic routes"
+                (\x -> compare [ "child", toString x ] (ChildR (ChildFoo x)) ())                    
             , fuzz ints1
                 "renders dynamic routes"
                 (\x -> compare [ "users", toString x ] (User x) ())

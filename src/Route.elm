@@ -13,6 +13,7 @@ module Route
         , int
         , and
         , (</>)
+        , child
         )
 
 {-| This module exposes combinators for creating route parsers.
@@ -24,6 +25,9 @@ module Route
 
 ## Route combinators
 @docs static, custom, string, int, and, (</>)
+
+## Nested Route
+@docs child
 -}
 
 import Combine exposing (..)
@@ -407,3 +411,39 @@ reverse (Route r) inputs =
                     Debug.crash "'reverse' called with an unexpected number of arguments"
     in
         accumulate [] inputs r.components
+
+
+
+
+{-| Match the child route as a same way.
+
+    type BarSitemap
+      = Baz
+
+    type Sitemap
+      = FooR
+      | BarR BarSitemap
+
+    fooR = FooR := static "foo"
+    barR = BarR := static "bar" </> child [bazR]
+    bazR = BazR := static "baz"
+    sitemap = router [fooR, barR]
+
+    > match sitemap "/foo"
+    Just FooR : Maybe Sitemap
+
+    > match sitemap "/bar"
+    Nothing : Maybe.Maybe Sitemap
+
+    > match sitemap "/bar/baz"
+    Just (BarR BazR) : Maybe.Maybe Sitemap
+
+-}
+child : List (Route b) -> Route ((b -> a) -> a)
+child rs =
+    let
+        ps =
+            List.map (\(Route r) -> .parser r) rs
+    in
+        custom <| choice ps
+
